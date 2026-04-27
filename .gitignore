@@ -1,0 +1,29 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 가상환경
+.venv/
+
+# 빌드/배포
+build/
+dist/
+*.exe
+*.spec
+
+# 대용량 데이터
+dataset/
+backups/
+*.csv
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# OneDrive 충돌
+*-충북과학고등학교*
+*충북과학*
