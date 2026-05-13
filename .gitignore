@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -17,6 +17,7 @@ dist/
 dataset/
 backups/
 *.csv
+*.zip
 
 # OS/IDE
 .DS_Store
