@@ -454,14 +454,18 @@ with tab2:
                     else:
                         raw_spectra = df[freq_cols].values # shape (N_steps, 500)
                         
-                        # 20단계로 보간 (Interpolation over time)
-                        from scipy.interpolate import interp1d
+                        # v2: 스텝 수가 이미 20이면 보간 없이 직접 사용 (학습 데이터와 동일)
                         n_steps_raw = len(raw_spectra)
-                        t_raw = np.linspace(0, 1, n_steps_raw)
-                        t_target = np.linspace(0, 1, 20)
-                        
-                        interpolator = interp1d(t_raw, raw_spectra, axis=0, kind='linear', fill_value='extrapolate')
-                        input_spectra = interpolator(t_target) # shape (20, 500)
+                        if n_steps_raw == 20:
+                            input_spectra = raw_spectra  # 보간 없이 직접 사용
+                            st.info(f"✅ 입력 데이터 {n_steps_raw}스텝 → 보간 없이 직접 사용 (학습 데이터와 동일)")
+                        else:
+                            from scipy.interpolate import interp1d
+                            t_raw = np.linspace(0, 1, n_steps_raw)
+                            t_target = np.linspace(0, 1, 20)
+                            interpolator = interp1d(t_raw, raw_spectra, axis=0, kind='linear', fill_value='extrapolate')
+                            input_spectra = interpolator(t_target) # shape (20, 500)
+                            st.warning(f"⚠️ 입력 데이터 {n_steps_raw}스텝 → 20스텝으로 보간 적용됨")
                         
                         # 모델 로드 및 전처리
                         available_gpus = [f"cuda:{i}" for i in range(torch.cuda.device_count())]
@@ -526,8 +530,19 @@ with tab2:
                                 st.write(f"**높이 오차**: {err_h:.1f} mm")
                                 st.write(f"**반경 평균 오차**: {err_r:.1f} mm")
                                 st.success("스펙트럼 입력만으로 기하학적 형상 블라인드 유추 완료!")
+                                
+                                # Input LSTM Sequence Visualization
+                                fig_spec, ax_spec = plt.subplots(figsize=(6, 2.5))
+                                spec_img = x_tensor.cpu().numpy()[0] # (20, 500)
+                                im = ax_spec.imshow(spec_img, aspect='auto', origin='lower', cmap='plasma')
+                                ax_spec.set_title("Input Sequence (20 Steps x 500 Bins)")
+                                ax_spec.set_xlabel("Frequency Bins")
+                                ax_spec.set_ylabel("Time Sequence")
+                                plt.colorbar(im, ax=ax_spec)
+                                st.pyplot(fig_spec)
+                                plt.close(fig_spec)
                         else:
-                            col1, col2 = st.columns(2)
+                            col1, col2 = st.columns([1, 2])
                             with col1:
                                 st.pyplot(plot_shape(pred_H, pred_R, title="RNN Model Prediction"))
                             with col2:
@@ -536,5 +551,16 @@ with tab2:
                                 for i, r in enumerate(pred_R):
                                     st.write(f"**r[{i}]:** {r:.4f} m")
                                 st.success("스펙트럼 시퀀스 분석 및 렌더링 완료!")
+                                
+                                # Input LSTM Sequence Visualization
+                                fig_spec, ax_spec = plt.subplots(figsize=(6, 2.5))
+                                spec_img = x_tensor.cpu().numpy()[0] # (20, 500)
+                                im = ax_spec.imshow(spec_img, aspect='auto', origin='lower', cmap='plasma')
+                                ax_spec.set_title("Input Sequence (20 Steps x 500 Bins)")
+                                ax_spec.set_xlabel("Frequency Bins")
+                                ax_spec.set_ylabel("Time Sequence")
+                                plt.colorbar(im, ax=ax_spec)
+                                st.pyplot(fig_spec)
+                                plt.close(fig_spec)
                 except Exception as e:
                     st.error(f"오류 발생: {e}")

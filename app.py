@@ -143,7 +143,7 @@ with tab1:
     with col1:
         st.subheader("단면 형상")
         fig_geo = plot_geometry_profile(geometry)
-        st.pyplot(fig_geo)
+        st.pyplot(fig_geo, use_container_width=False)
         plt.close(fig_geo)
     
     with col2:
@@ -328,16 +328,37 @@ with tab3:
     col_w1, col_w2 = st.columns([1, 2])
     
     with col_w1:
+        st.caption("⚠️ CNN/RNN 모델 추론용 CSV를 내보내려면 아래 값을 학습 데이터와 동일하게 유지하세요.")
         flow_rate_ml = st.number_input(
-            "유량 (mL/s)", value=5.0, min_value=0.1, max_value=100.0, step=0.5
+            "유량 (mL/s)", value=10.0, min_value=0.1, max_value=100.0, step=0.5,
+            help="학습 데이터 기준: 10.0 mL/s"
         )
         flow_rate = flow_rate_ml * 1e-6  # mL/s → m³/s
         
-        fill_pct = st.slider("최대 채움 비율 (%)", 10, 95, 80, 5)
-        num_steps = st.slider("측정 단계 수", 10, 100, 30, 5)
+        fill_pct = st.slider("최대 채움 비율 (%)", 10, 95, 90, 5,
+                             help="학습 데이터 기준: 90%")
+        num_steps = st.slider("측정 단계 수", 10, 100, 20, 5,
+                              help="학습 데이터 기준: 20 단계")
         
-        wf_freq_min = st.number_input("최소 주파수 (Hz)", value=100, key="wf_fmin")
+        wf_freq_min = st.number_input("최소 주파수 (Hz)", value=50, key="wf_fmin")
         wf_freq_max = st.number_input("최대 주파수 (Hz)", value=5000, key="wf_fmax")
+        
+        # 학습 데이터와 불일치 경고
+        mismatches = []
+        if abs(flow_rate_ml - 10.0) > 0.01:
+            mismatches.append(f"유량 {flow_rate_ml} mL/s (학습: 10.0)")
+        if fill_pct != 90:
+            mismatches.append(f"채움 비율 {fill_pct}% (학습: 90%)")
+        if num_steps != 20:
+            mismatches.append(f"단계 수 {num_steps} (학습: 20)")
+        if wf_freq_min != 50:
+            mismatches.append(f"최소 주파수 {wf_freq_min}Hz (학습: 50Hz)")
+        if wf_freq_max != 5000:
+            mismatches.append(f"최대 주파수 {wf_freq_max}Hz (학습: 5000Hz)")
+        
+        if mismatches:
+            st.warning("⚠️ **학습 데이터와 불일치**\n\n" + "\n".join(f"- {m}" for m in mismatches) +
+                       "\n\nCNN/RNN 모델 추론 정확도가 저하될 수 있습니다.")
         
         # Estimate fill time
         vol_fill = geometry.volume() * (fill_pct / 100)
@@ -363,6 +384,8 @@ with tab3:
                 fill_fraction=fill_pct / 100,
                 freq_min=float(wf_freq_min),
                 freq_max=float(wf_freq_max),
+                freq_points=500,          # v2: 학습 데이터와 동일 (보간 없이 직접 500pt)
+                air_num_segments=30,       # v2: 학습 데이터와 동일 (TMM 세그먼트 수)
             )
             
             for update in gen:
@@ -439,28 +462,19 @@ with tab3:
                 for i in range(8):
                     spec_dict[f'true_r{i}'] = [ctrl_r[i]] * len(wf.time_values)
                     
-                base_freqs = wf.full_results[0].frequencies # (500,)
-                
-                # To match ml_dataset logic exactly, we interpolate to 500 fixed points (50~5000Hz) if it differs
-                target_f = np.linspace(50, 5000, 500)
-                
+                # v2: freq_points=500, freq_min=50으로 통일했으므로 항상 500포인트
+                # 보간 없이 직접 사용 (학습 데이터와 완전 동일한 파이프라인)
                 for step_i, result in enumerate(wf.full_results):
+                    if result is None:
+                        continue
                     # log10 파워 스펙트럼 (generate_spectrum_dataset.py 와 동일 조건)
                     power_resp = np.log10(result.transfer_function + 1e-10)
                     
-                    # 500포인트로 통일 (사용자가 UI에서 해상도를 다르게 입력했을 수 있으므로)
-                    if len(power_resp) != 500:
-                        from scipy.interpolate import interp1d
-                        f_interpolator = interp1d(result.frequencies, power_resp, kind='linear', fill_value='extrapolate')
-                        pow_500 = f_interpolator(target_f)
-                    else:
-                        pow_500 = power_resp
-                        
-                    for bin_idx in range(500):
+                    for bin_idx in range(len(power_resp)):
                         col_name = f'freq_bin_{bin_idx+1}'
                         if col_name not in spec_dict:
                             spec_dict[col_name] = []
-                        spec_dict[col_name].append(pow_500[bin_idx])
+                        spec_dict[col_name].append(power_resp[bin_idx])
                         
                 df_spec = pd.DataFrame(spec_dict)
                 csv_spec = df_spec.to_csv(index=False).encode('utf-8')
@@ -534,4 +548,4 @@ with tab3:
 
 # ─── Footer ───────────────────────────────────────────────────
 st.divider()
-st.caption("Acoustic Cavity Simulator v1.0 — 기주공명 연구용 시뮬레이션 도구")
+st.caption("Acoustic Cavity Simulator v2.0 — 학습 파이프라인 통일 (TMM 30seg, 500freq, 50Hz~5kHz)")

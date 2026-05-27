@@ -132,10 +132,12 @@ def plot_mode_shape(z_values: np.ndarray, pressure: np.ndarray,
     return fig
 
 
-def plot_geometry_profile(geometry, figsize: Tuple[float, float] = (8, 6)) -> plt.Figure:
+def plot_geometry_profile(geometry, figsize: Tuple[float, float] = (3, 3)) -> plt.Figure:
     """
     Plot the cross-section of the cavity geometry.
     Shows both halves (symmetric about z-axis).
+    Axes are fixed to height 0~20cm and radius -10~10cm so the cup
+    is always fully visible in a single screen.
     """
     z, r = geometry.get_profile(200)
     z_cm = z * 100
@@ -159,6 +161,8 @@ def plot_geometry_profile(geometry, figsize: Tuple[float, float] = (8, 6)) -> pl
     ax.set_ylabel('z (cm)')
     ax.set_title(f'{geometry.name} Cross Section')
     ax.set_aspect('equal')
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(0, 20)
     ax.grid(True, alpha=0.3)
     ax.axvline(x=0, color='gray', linestyle=':', alpha=0.5)
     
