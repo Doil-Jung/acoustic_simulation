@@ -28,3 +28,7 @@ Thumbs.db
 # OneDrive 충돌
 *-충북과학고등학교*
 *충북과학*
+
+# Shortcut files
+*.lnk
+

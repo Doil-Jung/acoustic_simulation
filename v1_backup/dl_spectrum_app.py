@@ -455,18 +455,14 @@ with tab2:
                     else:
                         raw_spectra = df[freq_cols].values # shape (N_steps, 500)
                         
-                        # v2: 스텝 수가 이미 20이면 보간 없이 직접 사용 (학습 데이터와 동일)
+                        # 20단계로 보간 (Interpolation over time)
+                        from scipy.interpolate import interp1d
                         n_steps_raw = len(raw_spectra)
-                        if n_steps_raw == 20:
-                            input_spectra = raw_spectra
-                            st.info(f"✅ 입력 데이터 {n_steps_raw}스텝 → 보간 없이 직접 사용")
-                        else:
-                            from scipy.interpolate import interp1d
-                            t_raw = np.linspace(0, 1, n_steps_raw) 
-                            t_target = np.linspace(0, 1, 20)      
-                            interpolator = interp1d(t_raw, raw_spectra, axis=0, kind='linear', fill_value='extrapolate')
-                            input_spectra = interpolator(t_target)
-                            st.warning(f"⚠️ 입력 데이터 {n_steps_raw}스텝 → 20스텝으로 보간 적용됨")
+                        t_raw = np.linspace(0, 1, n_steps_raw) 
+                        t_target = np.linspace(0, 1, 20)      
+                        
+                        interpolator = interp1d(t_raw, raw_spectra, axis=0, kind='linear', fill_value='extrapolate')
+                        input_spectra = interpolator(t_target) # shape (20, 500)
                         
                         # 모델 로드 및 전처리
                         available_gpus = [f"cuda:{i}" for i in range(torch.cuda.device_count())]

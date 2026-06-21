@@ -45,7 +45,6 @@ class WaterFillingSim:
                  freq_min: float = 100.0,
                  freq_max: float = 5000.0,
                  freq_points: int = 2000,
-                 air_num_segments: int = 30,
                  ):
         """
         Run water filling simulation. Yields progress updates.
@@ -62,10 +61,13 @@ class WaterFillingSim:
             Tuple[int, float, List[float]]: (step_index, water_height, resonance_frequencies)
             The last yielded item is a tuple ("FINISH", WaterFillingResult)
         """
-        # v2: fill_fraction은 부피 기준 (generate_spectrum_dataset.py와 동일)
-        # 높이의 90%가 아니라, 전체 부피의 90%에 해당하는 수위까지 채움
+        max_water_height = geometry.height * fill_fraction
+        
+        # Calculate water heights considering variable cross-section
+        # dh/dt = Q / A(h) → Δh_i = Q·Δt / A(h_i)
+        # We choose steps so total time is distributed evenly
         water_heights, time_values = self._compute_water_heights(
-            geometry, flow_rate, fill_fraction, num_steps
+            geometry, flow_rate, max_water_height, num_steps
         )
         
         air_column_heights = geometry.height - water_heights
@@ -83,7 +85,7 @@ class WaterFillingSim:
                 continue
             
             # Create a new geometry representing only the air column above water
-            air_geometry = self._extract_air_column(geometry, wh, air_num_segments)
+            air_geometry = self._extract_air_column(geometry, wh)
             
             # Solve: bottom = rigid (water surface), top = radiation (opening)
             result = self.solver.solve(
@@ -112,50 +114,56 @@ class WaterFillingSim:
     
     def _compute_water_heights(self, geometry: CavityGeometry,
                                 flow_rate: float,
-                                fill_fraction: float,
+                                max_height: float,
                                 num_steps: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute water heights over time, accounting for variable cross-section.
+        dh/dt = Q / A(h)
         
-        v2: 부피 등분 방식 (generate_spectrum_dataset.py와 동일)
-        - 전체 높이까지의 누적 부피 V(z)를 계산
-        - fill_fraction은 부피 기준 (0.9 = 전체 부피의 90%)
-        - 목표 부피를 num_steps 등분하여 각 부피에 해당하는 수위를 역산
+        Uses forward Euler integration with fine time steps, then
+        samples at num_steps evenly spaced time points.
         """
-        # 전체 높이까지의 누적 부피 프로파일 V(z) 계산
-        n_fine = 200
-        z_eval = np.linspace(0, geometry.height, n_fine)
-        areas = np.array([geometry.area_at(z) for z in z_eval])
-        dz = geometry.height / (n_fine - 1)
-        V_cum = np.cumsum(areas * dz)
-        V_cum = np.insert(V_cum, 0, 0.0)[:-1]  # V(0) = 0
-        total_vol = V_cum[-1]
+        # Fine integration
+        fine_steps = num_steps * 100
+        h = 0.0
+        heights = [0.0]
+        times = [0.0]
+        t = 0.0
         
-        # fill_fraction을 부피 기준으로 적용
-        target_vol_max = total_vol * fill_fraction
+        # Estimate total fill time
+        # dt = dh * A(h) / Q
+        dh_fine = max_height / fine_steps
         
-        # 부피를 num_steps 등분하여 수위 계산
-        volumes_sample = np.linspace(0, target_vol_max, num_steps)
-        h_samples = np.interp(volumes_sample, V_cum, z_eval)
+        for _ in range(fine_steps):
+            area = geometry.area_at(h)
+            dt = dh_fine * area / flow_rate
+            t += dt
+            h += dh_fine
+            if h > max_height:
+                h = max_height
+                heights.append(h)
+                times.append(t)
+                break
+            heights.append(h)
+            times.append(t)
         
-        # 시간 계산: t = V / Q
-        t_samples = volumes_sample / flow_rate
+        heights = np.array(heights)
+        times = np.array(times)
+        
+        # Sample at evenly spaced time points
+        t_samples = np.linspace(0, times[-1], num_steps)
+        h_samples = np.interp(t_samples, times, heights)
         
         return h_samples, t_samples
     
     def _extract_air_column(self, geometry: CavityGeometry,
-                             water_height: float,
-                             air_num_segments: int = 30) -> CavityGeometry:
+                             water_height: float) -> CavityGeometry:
         """
         Extract the air column geometry above the water surface.
         
         The air column goes from z=water_height to z=geometry.height in the
         original geometry. We create a new geometry where z=0 is the water
         surface and z=air_height is the opening.
-        
-        Args:
-            air_num_segments: TMM 세그먼트 수. 학습 데이터와 동일한 값(30)을
-                사용해야 학습-추론 간 스펙트럼이 일치합니다.
         """
         air_height = geometry.height - water_height
         
@@ -167,5 +175,5 @@ class WaterFillingSim:
             name=f"Air column (water at {water_height*100:.1f} cm)",
             height=air_height,
             radius_func=air_radius_func,
-            num_segments=air_num_segments,
+            num_segments=max(20, geometry.num_segments // 2),
         )
