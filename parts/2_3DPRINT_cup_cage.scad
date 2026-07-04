@@ -41,12 +41,9 @@ union() {
         translate([0, 0, -CAGE_H + FLOOR_H + LEAK_DRAIN_D/2])
             rotate([0, -90, 0])
                 cylinder(d = LEAK_DRAIN_D, h = SOCK_OD/2 + 10);
-        // 가이드 파이프 관통
+        // 일체형 가이드 부싱 홀 (외경 ø8.0 파이프 가이드용 슬라이딩 공차 적용 ø8.3 관통)
         translate([-DRAIN_RADIUS, 0, -CAGE_H - 1])
-            cylinder(d = GUIDE_PIPE_D + 1.0, h = FLOOR_H + 2);
-        // 부싱 리세스
-        translate([-DRAIN_RADIUS, 0, -CAGE_H + FLOOR_H - BUSHING_H])
-            cylinder(d = BUSHING_OD + GLOBAL_TOLERANCE, h = BUSHING_H + 0.1);
+            cylinder(d = GUIDE_PIPE_D + 0.3, h = FLOOR_H + 2);
     }
     // 내부 립
     difference() {

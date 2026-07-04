@@ -20,8 +20,8 @@ CUP_ID = 100.0;  CUP_WALL = 5.0; CUP_OD = 110.0;     // 아크릴 원통 OD110/I
 CUP_H = 180.0;   CAGE_H = 60.0;  FLOOR_H = 10.0; PISTON_H = 20.0;     
 
 LIP_D = 30.0;    LIP_H = 5.0;    LEAK_DRAIN_D = 4.0;    
-GUIDE_PIPE_D = 10.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
-DRAIN_RADIUS = 35.0; DRAIN_D = 10.0;        
+GUIDE_PIPE_D = 8.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
+DRAIN_RADIUS = 35.0; DRAIN_D = 8.0;        
 
 Y_OFFSET = 85.0; BRKT_H = 12.0; BRKT_D = 122.0; BRKT_ID = 62.0; Z_MOUNT_PCD = 86.0;   
 
@@ -198,7 +198,7 @@ module main_system_assembly() {
         translate([0, Y_OFFSET, -252 - 10]) x_slider_block_dummy();
         color([0.2, 0.6, 0.3]) translate([0, 0, -252]) h_bridge_adapter_plate();
         z_cylinder_and_cage();
-        translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) bushing_dummy();
+        // translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) bushing_dummy(); // 일체형 가이드홀로 대체되어 제거
         translate([0, 0, -CUP_H - CAGE_H]) color([0.1, 0.1, 0.1]) z_motor_dummy();
         translate([0, 0, Z_MOVE]) z_moving_parts_assembly();
 
@@ -311,7 +311,7 @@ module acoustic_measurement_module() {
     MIC_D=22;  MIC_TD=7;
 
     // ── 급수관 ──
-    TUBE_OD=5;
+    TUBE_OD=8;
 
     // ── 브래킷 설계 파라미터 ──
     PT   = 10;       // 상부 볼팅 판재 두께
@@ -544,15 +544,15 @@ module fluidic_control_system_assembly() {
     }
 
     color([0.9, 0.9, 0.9, 0.5]) { 
-        tube_curve([-150, Y_OFFSET + 30, -420], [-150, Y_OFFSET + 30, -310], 5);
-        tube_curve([-150, Y_OFFSET + 30, -310], [PUMP_X - 12, PUMP_Y - 22, PUMP_Z + 15], 5);
+        tube_curve([-150, Y_OFFSET + 30, -420], [-150, Y_OFFSET + 30, -310], 8);
+        tube_curve([-150, Y_OFFSET + 30, -310], [PUMP_X - 12, PUMP_Y - 22, PUMP_Z + 15], 8);
         // 급수관: 펌프 → 프레임 뒤쪽(Y_B)으로 돌아서 → 브래킷 가이드 상단 출구
         tube_bezier(
             [PUMP_X + 12, PUMP_Y - 22, PUMP_Z + 15],  // P0: 펌프 출구
             [PUMP_X + 12, Y_B + 30, PUMP_Z + 50],      // P1: 뒤쪽으로 올라가는 접선
             [X_POS_MEASURE, Y_B + 30, Z_TOP],           // P2: 브래킷 뒤쪽 상단 접선
             [X_POS_MEASURE, 80, 163],                    // P3: 가이드 상단 +10mm 출구점
-            5, 30);
+            8, 30);
         tube_curve([X_MOVE - DRAIN_RADIUS, 0, Z_MOVE - 260], [(X_MOVE - DRAIN_RADIUS + VALVE_X)/2, 40, -300], 8);
         tube_curve([(X_MOVE - DRAIN_RADIUS + VALVE_X)/2, 40, -300], [VALVE_X + 15, VALVE_Y - 8, VALVE_Z + 15], 8);
         tube_curve([VALVE_X + 15, VALVE_Y + 48, VALVE_Z + 15], [VALVE_X + 15, VALVE_Y + 48, -410], 8);
@@ -918,9 +918,45 @@ module acryl_pipe_revolver_assembly(depleted=[0,0,0,0,0,0], drops=[0,0,0,0,0,0])
     }
 }
 module h_bridge_adapter_plate() { difference() { hull() { translate([0, -Y_OFFSET, 0]) cylinder(d = X_BLOCK_L + 10, h = BRKT_H); translate([0, 0, 0]) cylinder(d = BRKT_D, h = BRKT_H); translate([0, Y_OFFSET, 0]) cylinder(d = X_BLOCK_L + 10, h = BRKT_H); } translate([0, -Y_OFFSET, 0]) { for(x = [-X_PITCH_X/2, X_PITCH_X/2]) { for(y = [-X_PITCH_Y/2, X_PITCH_Y/2]) { translate([x, y, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } } } translate([0, Y_OFFSET, 0]) { for(x = [-X_PITCH_X/2, X_PITCH_X/2]) { for(y = [-X_PITCH_Y/2, X_PITCH_Y/2]) { translate([x, y, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } } } translate([0, 0, -1]) cylinder(d = BRKT_ID, h = BRKT_H + 2); for(a = [45, 135, 225, 315]) { rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } translate([-DRAIN_RADIUS, 0, -1]) cylinder(d = 14, h = BRKT_H + 2); } }
-module z_cylinder_and_cage() { color([0.2, 0.5, 0.8, 0.25]) { difference() { translate([0, 0, -CUP_H]) cylinder(d=CUP_OD, h=CUP_H); translate([0, 0, -CUP_H - 0.1]) cylinder(d=CUP_ID, h=CUP_H + 0.2); } } color([0.85, 0.85, 0.85, 1.0]) { union() { difference() { translate([0, 0, -CUP_H - CAGE_H]) cylinder(d=CUP_OD, h=CAGE_H); translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=CUP_ID, h=CAGE_H - FLOOR_H + 0.1); translate([-32.5, -CUP_OD/2 - 10, -CUP_H - CAGE_H + FLOOR_H + 5]) cube([65, CUP_OD + 20, CAGE_H - FLOOR_H - 10]); translate([0, 0, -CUP_H - CAGE_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = FLOOR_H + 0.2); translate([0, 0, -CUP_H - CAGE_H - 1]) { for(x = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) { for(y = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) { translate([x, y, 0]) cylinder(d = MOTOR_HOLE_D, h = FLOOR_H + 3); } } } translate([0, 0, -CUP_H - CAGE_H - 1]) { for(a = [45, 135, 225, 315]) { rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, 0]) cylinder(d = 4.5, h = FLOOR_H + 2); } } translate([0, 0, -CUP_H - CAGE_H + FLOOR_H + LEAK_DRAIN_D/2]) rotate([0, -90, 0]) cylinder(d = LEAK_DRAIN_D, h = CUP_OD/2 + 10); translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H - 1]) cylinder(d = GUIDE_PIPE_D + 1.0, h = FLOOR_H + 2); translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) cylinder(d = BUSHING_OD + GLOBAL_TOLERANCE, h = BUSHING_H + 0.1); } difference() { translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=LIP_D, h=LIP_H); translate([0, 0, -CUP_H - CAGE_H + FLOOR_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = LIP_H + 0.2); } } } }
+module z_cylinder_and_cage() {
+    color([0.2, 0.5, 0.8, 0.25]) {
+        difference() {
+            translate([0, 0, -CUP_H]) cylinder(d=CUP_OD, h=CUP_H);
+            translate([0, 0, -CUP_H - 0.1]) cylinder(d=CUP_ID, h=CUP_H + 0.2);
+        }
+    }
+    color([0.85, 0.85, 0.85, 1.0]) {
+        union() {
+            difference() {
+                translate([0, 0, -CUP_H - CAGE_H]) cylinder(d=CUP_OD, h=CAGE_H);
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=CUP_ID, h=CAGE_H - FLOOR_H + 0.1);
+                translate([-32.5, -CUP_OD/2 - 10, -CUP_H - CAGE_H + FLOOR_H + 5]) cube([65, CUP_OD + 20, CAGE_H - FLOOR_H - 10]);
+                translate([0, 0, -CUP_H - CAGE_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = FLOOR_H + 0.2);
+                translate([0, 0, -CUP_H - CAGE_H - 1]) {
+                    for(x = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) {
+                        for(y = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) {
+                            translate([x, y, 0]) cylinder(d = MOTOR_HOLE_D, h = FLOOR_H + 3);
+                        }
+                    }
+                }
+                translate([0, 0, -CUP_H - CAGE_H - 1]) {
+                    for(a = [45, 135, 225, 315]) {
+                        rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, 0]) cylinder(d = 4.5, h = FLOOR_H + 2);
+                    }
+                }
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H + LEAK_DRAIN_D/2]) rotate([0, -90, 0]) cylinder(d = LEAK_DRAIN_D, h = CUP_OD/2 + 10);
+                // 일체형 가이드 부싱 홀 (외경 ø8.0 파이프 가이드용 슬라이딩 공차 적용 ø8.3 관통)
+                translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H - 1]) cylinder(d = GUIDE_PIPE_D + 0.3, h = FLOOR_H + 2);
+            }
+            difference() {
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=LIP_D, h=LIP_H);
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = LIP_H + 0.2);
+            }
+        }
+    }
+}
 module z_moving_parts_assembly() {
-    UPAK_W=8; UPAK_DEPTH=5; UPAK_Z=10;
+    UPAK_W=6; UPAK_DEPTH=5; UPAK_Z=10;
     
     // T8 4-start 리드스크류 암나사 생성 모듈 (공차 포함, 접착제 고정용)
     module t8_internal_thread_subtraction(h) {
@@ -947,8 +983,8 @@ module z_moving_parts_assembly() {
         translate([0, 0, -PISTON_H - 0.1])
             t8_internal_thread_subtraction(PISTON_H - 5 + 0.1);
             
-        // 배수관 단턱 소켓 (Z=-5 ~ 0 은 ø8.0 관통, Z=-30 ~ -5 은 ø10.2 소켓)
-        translate([-DRAIN_RADIUS, 0, -5]) cylinder(d=8.0, h=6.1);
+        // 배수관 단턱 소켓 (Z=-5 ~ 0 은 ø6.0 관통, Z=-30 ~ -5 은 ø8.2 소켓)
+        translate([-DRAIN_RADIUS, 0, -5]) cylinder(d=6.0, h=6.1);
         translate([-DRAIN_RADIUS, 0, -PISTON_H - 10 - 1]) cylinder(d=DRAIN_D + GLOBAL_TOLERANCE, h=PISTON_H + 10 - 5 + 1.1);
         translate([0, 0, -UPAK_Z - UPAK_W/2]) difference() {
             cylinder(d=CUP_ID + 1, h=UPAK_W);
@@ -961,10 +997,10 @@ module z_moving_parts_assembly() {
     }
     // T8 리드스크류 (Z=-5에서 시작하여 280mm 하방 연장)
     translate([0, 0, -5]) rotate([180, 0, 0]) color([0.9, 0.9, 0.2]) cylinder(d=8, h=280);
-    // 알루미늄 튜브 (ø10 × 0.5T, Z=-5에서 시작하여 300mm 하방 연장)
+    // 알루미늄 튜브 (ø8 × 1.0T, Z=-5에서 시작하여 250mm 하방 연장)
     translate([-DRAIN_RADIUS, 0, -5]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) difference() {
-        cylinder(d=GUIDE_PIPE_D, h=300);
-        translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 1.0, h=302);
+        cylinder(d=GUIDE_PIPE_D, h=250);
+        translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 2.0, h=252);
     }
     // U패킹 실링 (청색 폴리우레탄, 피스톤 홈에 장착됨)
     translate([0, 0, -UPAK_Z]) color([0.1, 0.4, 0.8, 1.0]) {

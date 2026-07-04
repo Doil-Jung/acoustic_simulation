@@ -20,8 +20,8 @@ CUP_ID = 100.0;  CUP_WALL = 6.0; CUP_OD = 112.0;
 CUP_H = 180.0;   CAGE_H = 60.0;  FLOOR_H = 10.0; PISTON_H = 25.0;     
 
 LIP_D = 30.0;    LIP_H = 5.0;    LEAK_DRAIN_D = 4.0;    
-GUIDE_PIPE_D = 10.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
-DRAIN_RADIUS = 35.0; DRAIN_D = 10.0;        
+GUIDE_PIPE_D = 8.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
+DRAIN_RADIUS = 35.0; DRAIN_D = 8.0;        
 
 Y_OFFSET = 85.0; BRKT_H = 12.0; BRKT_D = 122.0; BRKT_ID = 62.0; Z_MOUNT_PCD = 86.0;   
 
@@ -86,19 +86,20 @@ anim_pt = ($t * ANIM_N) - anim_phase;
 anim_s = (1 - cos(anim_pt * 180)) / 2;  // ease-in-out
 
 // ── Z축 피스톤 위치 (0=최상위, 음수=하강) ──
+RH = 15;  // 링 높이 (mm)
 Z_MOVE =
     anim_phase == 0 ? 0 :
-    anim_phase == 1 ? -10 * anim_s :
-    anim_phase == 2 ? -10 :
-    anim_phase == 3 ? -10 - 10 * anim_s :
-    anim_phase == 4 ? -20 :
-    anim_phase == 5 ? -20 - 10 * anim_s :
-    (anim_phase >= 6 && anim_phase <= 11) ? -30 :
-    anim_phase == 12 ? -30 + 10 * anim_s :
-    anim_phase == 13 ? -20 :
-    anim_phase == 14 ? -20 + 10 * anim_s :
-    anim_phase == 15 ? -10 :
-    anim_phase == 16 ? -10 + 10 * anim_s : 0;
+    anim_phase == 1 ? -RH * anim_s :
+    anim_phase == 2 ? -RH :
+    anim_phase == 3 ? -RH - RH * anim_s :
+    anim_phase == 4 ? -RH*2 :
+    anim_phase == 5 ? -RH*2 - RH * anim_s :
+    (anim_phase >= 6 && anim_phase <= 11) ? -RH*3 :
+    anim_phase == 12 ? -RH*3 + RH * anim_s :
+    anim_phase == 13 ? -RH*2 :
+    anim_phase == 14 ? -RH*2 + RH * anim_s :
+    anim_phase == 15 ? -RH :
+    anim_phase == 16 ? -RH + RH * anim_s : 0;
 
 // ── X축 원통 이동 (0=원점, 165=측정 위치) ──
 X_MOVE =
@@ -137,9 +138,9 @@ DEPLETED = [for(i = [0:5])
 ];
 
 // ── 슬롯별 독립 링 드롭 오프셋 (내려간 상태 유지, STACK_ORDER 기반) ──
-DROP_S0 = (anim_phase == 0) ? 0 : (anim_phase == 1) ? Z_MOVE : (anim_phase >= 2 && anim_phase <= 15) ? -10 : (anim_phase == 16) ? Z_MOVE : 0;
-DROP_S1 = (anim_phase <= 2) ? 0 : (anim_phase == 3) ? Z_MOVE + 10 : (anim_phase >= 4 && anim_phase <= 13) ? -10 : (anim_phase == 14) ? Z_MOVE + 10 : 0;
-DROP_S2 = (anim_phase <= 4) ? 0 : (anim_phase == 5) ? Z_MOVE + 20 : (anim_phase >= 6 && anim_phase <= 11) ? -10 : (anim_phase == 12) ? Z_MOVE + 20 : 0;
+DROP_S0 = (anim_phase == 0) ? 0 : (anim_phase == 1) ? Z_MOVE : (anim_phase >= 2 && anim_phase <= 15) ? -RH : (anim_phase == 16) ? Z_MOVE : 0;
+DROP_S1 = (anim_phase <= 2) ? 0 : (anim_phase == 3) ? Z_MOVE + RH : (anim_phase >= 4 && anim_phase <= 13) ? -RH : (anim_phase == 14) ? Z_MOVE + RH : 0;
+DROP_S2 = (anim_phase <= 4) ? 0 : (anim_phase == 5) ? Z_MOVE + RH*2 : (anim_phase >= 6 && anim_phase <= 11) ? -RH : (anim_phase == 12) ? Z_MOVE + RH*2 : 0;
 DROPS = [for(i = [0:5])
     (i == S0 ? DROP_S0 : 0) +
     (i == S1 ? DROP_S1 : 0) +
@@ -174,7 +175,7 @@ module main_system_assembly() {
         translate([0, Y_OFFSET, -252 - 10]) x_slider_block_dummy();
         color([0.2, 0.6, 0.3]) translate([0, 0, -252]) h_bridge_adapter_plate();
         z_cylinder_and_cage();
-        translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) bushing_dummy();
+        // translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) bushing_dummy(); // 일체형 가이드홀로 대체되어 제거
         translate([0, 0, -CUP_H - CAGE_H]) color([0.1, 0.1, 0.1]) z_motor_dummy();
         translate([0, 0, Z_MOVE]) z_moving_parts_assembly();
 
@@ -287,7 +288,7 @@ module acoustic_measurement_module() {
     MIC_D=22;  MIC_TD=7;
 
     // ── 급수관 ──
-    TUBE_OD=5;
+    TUBE_OD=8;
 
     // ── 브래킷 설계 파라미터 ──
     PT   = 10;       // 상부 볼팅 판재 두께
@@ -520,15 +521,15 @@ module fluidic_control_system_assembly() {
     }
 
     color([0.9, 0.9, 0.9, 0.5]) { 
-        tube_curve([-150, Y_OFFSET + 30, -420], [-150, Y_OFFSET + 30, -310], 5);
-        tube_curve([-150, Y_OFFSET + 30, -310], [PUMP_X - 12, PUMP_Y - 22, PUMP_Z + 15], 5);
+        tube_curve([-150, Y_OFFSET + 30, -420], [-150, Y_OFFSET + 30, -310], 8);
+        tube_curve([-150, Y_OFFSET + 30, -310], [PUMP_X - 12, PUMP_Y - 22, PUMP_Z + 15], 8);
         // 급수관: 펌프 → 프레임 뒤쪽(Y_B)으로 돌아서 → 브래킷 가이드 상단 출구
         tube_bezier(
             [PUMP_X + 12, PUMP_Y - 22, PUMP_Z + 15],  // P0: 펌프 출구
             [PUMP_X + 12, Y_B + 30, PUMP_Z + 50],      // P1: 뒤쪽으로 올라가는 접선
             [X_POS_MEASURE, Y_B + 30, Z_TOP],           // P2: 브래킷 뒤쪽 상단 접선
             [X_POS_MEASURE, 80, 163],                    // P3: 가이드 상단 +10mm 출구점
-            5, 30);
+            8, 30);
         tube_curve([X_MOVE - DRAIN_RADIUS, 0, Z_MOVE - 260], [(X_MOVE - DRAIN_RADIUS + VALVE_X)/2, 40, -300], 8);
         tube_curve([(X_MOVE - DRAIN_RADIUS + VALVE_X)/2, 40, -300], [VALVE_X + 15, VALVE_Y - 8, VALVE_Z + 15], 8);
         tube_curve([VALVE_X + 15, VALVE_Y + 48, VALVE_Z + 15], [VALVE_X + 15, VALVE_Y + 48, -410], 8);
@@ -611,8 +612,48 @@ module upper_fixed_base_plate() { color([0.5, 0.5, 0.5, 0.5]) { difference() { t
 module upper_servo_frame_assembly() { color([0.4, 0.4, 0.4, 0.8]) translate([0, 0, SUPPORT_PILLAR_H]) { difference() { translate([-35, -60, 0]) cube([70, 110, UPPER_BRKT_H]); translate([-SERVO_3032_L/2, -SERVO_3032_W/2, -1]) cube([SERVO_3032_L, SERVO_3032_W, UPPER_BRKT_H + 2]); for(x = [-(SERVO_3032_L+9)/2, (SERVO_3032_L+9)/2]) { for(y = [-8, 8]) { translate([x, y, -1]) cylinder(d=2.5, h=UPPER_BRKT_H + 2); } } for(x = [-20, 20]) { translate([x, -40, -1]) cylinder(d=4.5, h=UPPER_BRKT_H + 2); translate([x, 30, -1]) cylinder(d=4.5, h=UPPER_BRKT_H + 2); } } } translate([0, 0, SUPPORT_PILLAR_H - 10]) { color([0.15, 0.15, 0.15]) { translate([-SERVO_3032_L/2, -SERVO_3032_W/2, 0]) cube([SERVO_3032_L, SERVO_3032_W, SERVO_3032_H]); translate([-(SERVO_3032_L+15)/2, -SERVO_3032_W/2, 10]) cube([SERVO_3032_L+15, SERVO_3032_W, 2.5]); } color([1, 0.4, 0]) translate([-SERVO_3032_L/2, -SERVO_3032_W/2, 12.5]) cube([SERVO_3032_L, SERVO_3032_W, 10]); } translate([0, 0, 166]) color([0.85, 0.85, 0.85]) { difference() { cylinder(d=SERVO_HORN_D, h=SERVO_HORN_H); translate([0, 0, -0.1]) cylinder(d=4, h=SERVO_HORN_H + 0.2); for(a=[0:90:270]) { rotate([0, 0, a]) translate([HORN_PCD/2, 0, -1]) cylinder(d=2.0, h=8); } } } color([0.6, 0.6, 0.6]) translate([-PF/2, -PF/2, 20]) cube([PF, PF, 146]); }
 module acryl_pipe_revolver_assembly(depleted=[0,0,0,0,0,0], drops=[0,0,0,0,0,0]) { translate([0, 0, 0]) color([0.2, 0.2, 0.2]) difference() { union() { cylinder(d=HUB_D + 15, h=LOWER_HUB_H); translate([0, 0, -9]) cylinder(d=35.5, h=9); /* 센터링 보스 */ for(a = [0 : 60 : 359]) { rotate([0, 0, a]) { translate([HUB_D/2, -7, 0]) cube([REVOLVER_PCD/2 - HUB_D/2, 14, LOWER_HUB_H - 5]); translate([REVOLVER_PCD/2, 0, 0]) cylinder(d=ACRYL_OD + (HUB_WALL * 2), h=LOWER_HUB_H); } } } translate([0, 0, -1]) cylinder(d=SHAFT_D, h=LOWER_HUB_H + 2); translate([-(PF+GLOBAL_TOLERANCE)/2, -(PF+GLOBAL_TOLERANCE)/2, -TOP_PLATE_H - 1]) cube([PF + GLOBAL_TOLERANCE, PF + GLOBAL_TOLERANCE, LOWER_HUB_H + TOP_PLATE_H + 2]); rotate([0, 90, 0]) translate([-20, 0, 0]) cylinder(d=4.2, h=HUB_D); for(a = [0 : 60 : 359]) { rotate([0, 0, a]) translate([REVOLVER_PCD/2, 0, -1]) { translate([0, 0, LOWER_HUB_H - POCKET_DEPTH + 1]) cylinder(d=ACRYL_OD + GLOBAL_TOLERANCE, h=POCKET_DEPTH + 0.1); cylinder(d=CUP_ID + 0.5, h=LOWER_HUB_H + 2); } } } translate([0, 0, 145]) color([0.2, 0.2, 0.2]) difference() { union() { cylinder(d=HUB_D + 10, h=20); for(a = [0 : 60 : 359]) { rotate([0, 0, a]) { translate([HUB_D/2, -5, 0]) cube([REVOLVER_PCD/2 - HUB_D/2, 10, 20]); translate([REVOLVER_PCD/2, 0, 0]) cylinder(d=ACRYL_OD + (HUB_WALL * 2), h=20); } } } translate([-(PF+GLOBAL_TOLERANCE)/2, -(PF+GLOBAL_TOLERANCE)/2, -1]) cube([PF + GLOBAL_TOLERANCE, PF + GLOBAL_TOLERANCE, 25]); rotate([0, 90, 45]) translate([-10, 0, 0]) cylinder(d=4.2, h=HUB_D); translate([0, 0, 20 - 4]) cylinder(d=SERVO_HORN_D + 0.3, h=4.2); for(a=[0:90:270]) { rotate([0, 0, a]) translate([HORN_PCD/2, 0, -1]) cylinder(d=2.5, h=22); } for(a = [0 : 60 : 359]) { rotate([0, 0, a]) translate([REVOLVER_PCD/2, 0, -1]) cylinder(d=ACRYL_OD + GLOBAL_TOLERANCE, h=22); } } for(a = [0 : 60 : 359]) { rotate([0, 0, a]) translate([REVOLVER_PCD/2, 0, LOWER_HUB_H - POCKET_DEPTH]) { color([0.1, 0.7, 0.9, 0.25]) difference() { cylinder(d=ACRYL_OD, h=150); translate([0, 0, -1]) cylinder(d=ACRYL_ID, h=152); } } } for(i = [0 : 5]) { rotate([0, 0, i * 60]) translate([REVOLVER_PCD/2, 0, 0]) { for(z_idx = [depleted[i] : 14]) { translate([0, 0, z_idx * 10 + drops[i]]) color(RING_CLRS[i], 0.8) { difference() { cylinder(d=ACRYL_ID - 0.2, h=10); translate([0, 0, -0.1]) cylinder(d=RING_IDS[i], h=10.2); } } } } } }
 module h_bridge_adapter_plate() { difference() { hull() { translate([0, -Y_OFFSET, 0]) cylinder(d = X_BLOCK_L + 10, h = BRKT_H); translate([0, 0, 0]) cylinder(d = BRKT_D, h = BRKT_H); translate([0, Y_OFFSET, 0]) cylinder(d = X_BLOCK_L + 10, h = BRKT_H); } translate([0, -Y_OFFSET, 0]) { for(x = [-X_PITCH_X/2, X_PITCH_X/2]) { for(y = [-X_PITCH_Y/2, X_PITCH_Y/2]) { translate([x, y, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } } } translate([0, Y_OFFSET, 0]) { for(x = [-X_PITCH_X/2, X_PITCH_X/2]) { for(y = [-X_PITCH_Y/2, X_PITCH_Y/2]) { translate([x, y, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } } } translate([0, 0, -1]) cylinder(d = BRKT_ID, h = BRKT_H + 2); for(a = [45, 135, 225, 315]) { rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, -1]) cylinder(d = 4.5, h = BRKT_H + 2); } translate([-DRAIN_RADIUS, 0, -1]) cylinder(d = 14, h = BRKT_H + 2); } }
-module z_cylinder_and_cage() { color([0.2, 0.5, 0.8, 0.25]) { difference() { translate([0, 0, -CUP_H]) cylinder(d=CUP_OD, h=CUP_H); translate([0, 0, -CUP_H - 0.1]) cylinder(d=CUP_ID, h=CUP_H + 0.2); } } color([0.85, 0.85, 0.85, 1.0]) { union() { difference() { translate([0, 0, -CUP_H - CAGE_H]) cylinder(d=CUP_OD, h=CAGE_H); translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=CUP_ID, h=CAGE_H - FLOOR_H + 0.1); translate([-32.5, -CUP_OD/2 - 10, -CUP_H - CAGE_H + FLOOR_H + 5]) cube([65, CUP_OD + 20, CAGE_H - FLOOR_H - 10]); translate([0, 0, -CUP_H - CAGE_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = FLOOR_H + 0.2); translate([0, 0, -CUP_H - CAGE_H - 1]) { for(x = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) { for(y = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) { translate([x, y, 0]) cylinder(d = MOTOR_HOLE_D, h = FLOOR_H + 3); } } } translate([0, 0, -CUP_H - CAGE_H - 1]) { for(a = [45, 135, 225, 315]) { rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, 0]) cylinder(d = 4.5, h = FLOOR_H + 2); } } translate([0, 0, -CUP_H - CAGE_H + FLOOR_H + LEAK_DRAIN_D/2]) rotate([0, -90, 0]) cylinder(d = LEAK_DRAIN_D, h = CUP_OD/2 + 10); translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H - 1]) cylinder(d = GUIDE_PIPE_D + 1.0, h = FLOOR_H + 2); translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H + FLOOR_H - BUSHING_H]) cylinder(d = BUSHING_OD + GLOBAL_TOLERANCE, h = BUSHING_H + 0.1); } difference() { translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=LIP_D, h=LIP_H); translate([0, 0, -CUP_H - CAGE_H + FLOOR_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = LIP_H + 0.2); } } } }
-module z_moving_parts_assembly() { color([1.0, 0.5, 0.0, 1.0]) difference() { translate([0, 0, -PISTON_H]) cylinder(d=CUP_ID-0.5, h=PISTON_H); translate([0, 0, -PISTON_H - 1]) cylinder(d = SCREW_D + 0.5, h = PISTON_H + 2); translate([0, 0, -8]) cylinder(d = 15.0, h = 9, $fn = 6); translate([-DRAIN_RADIUS, 0, -PISTON_H - 1]) cylinder(d=DRAIN_D + GLOBAL_TOLERANCE, h=PISTON_H+2); } translate([0, 0, 0]) rotate([180, 0, 0]) color([0.9, 0.9, 0.2]) cylinder(d=8, h=290); translate([-DRAIN_RADIUS, 0, 0]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) difference() { cylinder(d=GUIDE_PIPE_D, h=260); translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 1.6, h=262); } }
+module z_cylinder_and_cage() {
+    color([0.2, 0.5, 0.8, 0.25]) {
+        difference() {
+            translate([0, 0, -CUP_H]) cylinder(d=CUP_OD, h=CUP_H);
+            translate([0, 0, -CUP_H - 0.1]) cylinder(d=CUP_ID, h=CUP_H + 0.2);
+        }
+    }
+    color([0.85, 0.85, 0.85, 1.0]) {
+        union() {
+            difference() {
+                translate([0, 0, -CUP_H - CAGE_H]) cylinder(d=CUP_OD, h=CAGE_H);
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=CUP_ID, h=CAGE_H - FLOOR_H + 0.1);
+                translate([-32.5, -CUP_OD/2 - 10, -CUP_H - CAGE_H + FLOOR_H + 5]) cube([65, CUP_OD + 20, CAGE_H - FLOOR_H - 10]);
+                translate([0, 0, -CUP_H - CAGE_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = FLOOR_H + 0.2);
+                translate([0, 0, -CUP_H - CAGE_H - 1]) {
+                    for(x = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) {
+                        for(y = [-MOTOR_PITCH/2, MOTOR_PITCH/2]) {
+                            translate([x, y, 0]) cylinder(d = MOTOR_HOLE_D, h = FLOOR_H + 3);
+                        }
+                    }
+                }
+                translate([0, 0, -CUP_H - CAGE_H - 1]) {
+                    for(a = [45, 135, 225, 315]) {
+                        rotate([0, 0, a]) translate([Z_MOUNT_PCD/2, 0, 0]) cylinder(d = 4.5, h = FLOOR_H + 2);
+                    }
+                }
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H + LEAK_DRAIN_D/2]) rotate([0, -90, 0]) cylinder(d = LEAK_DRAIN_D, h = CUP_OD/2 + 10);
+                // 일체형 가이드 부싱 홀 (외경 ø8.0 파이프 가이드용 슬라이딩 공차 적용 ø8.3 관통)
+                translate([-DRAIN_RADIUS, 0, -CUP_H - CAGE_H - 1]) cylinder(d = GUIDE_PIPE_D + 0.3, h = FLOOR_H + 2);
+            }
+            difference() {
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H]) cylinder(d=LIP_D, h=LIP_H);
+                translate([0, 0, -CUP_H - CAGE_H + FLOOR_H - 0.1]) cylinder(d = MOTOR_BOSS_D + GLOBAL_TOLERANCE, h = LIP_H + 0.2);
+            }
+        }
+    }
+}
+module z_moving_parts_assembly() { color([1.0, 0.5, 0.0, 1.0]) difference() { translate([0, 0, -PISTON_H]) cylinder(d=CUP_ID-0.5, h=PISTON_H); translate([0, 0, -PISTON_H - 1]) cylinder(d = SCREW_D + 0.5, h = PISTON_H + 2); translate([0, 0, -8]) cylinder(d = 15.0, h = 9, $fn = 6); translate([-DRAIN_RADIUS, 0, -PISTON_H - 1]) cylinder(d=DRAIN_D + GLOBAL_TOLERANCE, h=PISTON_H+2); } translate([0, 0, 0]) rotate([180, 0, 0]) color([0.9, 0.9, 0.2]) cylinder(d=8, h=290); translate([-DRAIN_RADIUS, 0, 0]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) difference() {
+        cylinder(d=GUIDE_PIPE_D, h=250);
+        translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 2.0, h=252);
+    }
+}
 module z_motor_dummy() { difference() { union() { translate([-MOTOR_W/2, -MOTOR_W/2, -40]) cube([MOTOR_W, MOTOR_W, 40]); cylinder(d=MOTOR_BOSS_D, h=MOTOR_BOSS_H); } translate([0, 0, -45]) cylinder(d = SCREW_D + 2, h = 50); } }
 module bushing_dummy() { color([0.8, 0.55, 0.3, 1.0]) difference() { cylinder(d = BUSHING_OD, h = BUSHING_H); translate([0, 0, -1]) cylinder(d = GUIDE_PIPE_D, h = BUSHING_H + 2); } }
 module x_slider_block_dummy() {

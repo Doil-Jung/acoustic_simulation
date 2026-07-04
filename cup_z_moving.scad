@@ -35,11 +35,11 @@ LEAK_DRAIN_D = 4.0;
 WINDOW_W = 65.0;       
 
 // 5. 배수관 겸 리니어 가이드 & 부싱 규격
-GUIDE_PIPE_D = 10.0;   
+GUIDE_PIPE_D = 8.0;   
 BUSHING_OD = 12.0;     
 BUSHING_H = 8.0;       
 DRAIN_RADIUS = 35.0;   
-DRAIN_D = 10.0;        
+DRAIN_D = 8.0;        
 PISTON_H = 25.0;       
 
 // =========================================================================
@@ -192,7 +192,7 @@ module guide_pipe_dummy(length = 200) {
         difference() {
             cylinder(d = GUIDE_PIPE_D, h = length);
             translate([0, 0, -1])
-                cylinder(d = GUIDE_PIPE_D - 1.6, h = length + 2); 
+                cylinder(d = GUIDE_PIPE_D - 2.0, h = length + 2); 
         }
     }
 }

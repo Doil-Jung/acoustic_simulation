@@ -16,12 +16,12 @@ X_RAIL_W = 40.0;  X_RAIL_H = 30.0;
 MOTOR_W = 42.0;      MOTOR_PITCH = 31.0; MOTOR_HOLE_D = 3.5;    
 MOTOR_BOSS_D = 22.0; MOTOR_BOSS_H = 2.0; SCREW_D = 8.0;         
 
-CUP_ID = 100.0;  CUP_WALL = 5.0; CUP_OD = 110.0;     // 아크릴 원통 OD110/ID100
+CUP_ID = 99.5;  CUP_WALL = 5.0; CUP_OD = 110.0;     // 아크릴 원통 OD110/ID100
 CUP_H = 180.0;   CAGE_H = 60.0;  FLOOR_H = 10.0; PISTON_H = 20.0;     
 
 LIP_D = 30.0;    LIP_H = 5.0;    LEAK_DRAIN_D = 4.0;    
-GUIDE_PIPE_D = 10.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
-DRAIN_RADIUS = 35.0; DRAIN_D = 10.0;        
+GUIDE_PIPE_D = 8.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
+DRAIN_RADIUS = 35.0; DRAIN_D = 8.0;        
 
 Y_OFFSET = 85.0; BRKT_H = 12.0; BRKT_D = 122.0; BRKT_ID = 62.0; Z_MOUNT_PCD = 86.0;   
 

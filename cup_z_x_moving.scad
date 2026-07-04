@@ -39,11 +39,11 @@ PISTON_H = 25.0;
 LIP_D = 30.0;          
 LIP_H = 5.0;           
 LEAK_DRAIN_D = 4.0;    
-GUIDE_PIPE_D = 10.0;   
+GUIDE_PIPE_D = 8.0;   
 BUSHING_OD = 12.0;     
 BUSHING_H = 8.0;       
 DRAIN_RADIUS = 35.0;   
-DRAIN_D = 10.0;        
+DRAIN_D = 8.0;        
 
 // 5. H-브릿지 개정 파라미터 (★내경 축소 및 직결 홀 배치)
 Y_OFFSET = 85.0;            
@@ -225,7 +225,7 @@ module z_moving_parts_assembly() {
     translate([35, 0, PISTON_H]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) 
         difference() {
             cylinder(d=GUIDE_PIPE_D, h=220);
-            translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 1.6, h=222);
+            translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 2.0, h=222);
         }
 }
 

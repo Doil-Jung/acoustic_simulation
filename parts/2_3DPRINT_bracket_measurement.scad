@@ -16,7 +16,7 @@ SPK_DEPTH=55;  SPK_HOLE=5;  SPK_FT=3;
 
 // 마이크/급수
 MIC_D=22;  MIC_TD=7;
-TUBE_OD=5;
+TUBE_OD=8;
 
 // 브래킷
 WALL = 8;        // 슈라우드 벽 두께 (강화, 날개 직결 구조)

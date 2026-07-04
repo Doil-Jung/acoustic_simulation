@@ -21,8 +21,8 @@ CUP_ID = 100.0;  CUP_WALL = 6.0; CUP_OD = 112.0;
 CUP_H = 180.0;   CAGE_H = 60.0;  FLOOR_H = 10.0; PISTON_H = 25.0;     
 
 LIP_D = 30.0;    LIP_H = 5.0;    LEAK_DRAIN_D = 4.0;    
-GUIDE_PIPE_D = 10.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
-DRAIN_RADIUS = 35.0; DRAIN_D = 10.0;        
+GUIDE_PIPE_D = 8.0; BUSHING_OD = 12.0; BUSHING_H = 8.0;       
+DRAIN_RADIUS = 35.0; DRAIN_D = 8.0;        
 
 Y_OFFSET = 85.0; BRKT_H = 12.0; BRKT_D = 122.0; BRKT_ID = 62.0; Z_MOUNT_PCD = 86.0;   
 
@@ -213,7 +213,7 @@ module z_moving_parts_assembly() {
     } 
     translate([0, 0, 0]) rotate([180, 0, 0]) color([0.8, 0.8, 0.8]) cylinder(d=8, h=250); 
     // ★ [교정] 피스톤과 일체형으로 움직이는 물 넘침 방지용 스테인리스 가이드 수직 파이프도 좌측(-DRAIN_RADIUS)으로 정밀 연동 이동 완료
-    translate([-DRAIN_RADIUS, 0, 0]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) difference() { cylinder(d=GUIDE_PIPE_D, h=220); translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 1.6, h=222); } 
+    translate([-DRAIN_RADIUS, 0, 0]) rotate([180, 0, 0]) color([0.55, 0.57, 0.6, 1.0]) difference() { cylinder(d=GUIDE_PIPE_D, h=220); translate([0,0,-1]) cylinder(d=GUIDE_PIPE_D - 2.0, h=222); } 
 }
 
 // =========================================================================

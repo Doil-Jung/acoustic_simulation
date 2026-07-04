@@ -6,8 +6,8 @@
 // =========================================================================
 include <_params.scad>
 
-// U패킹 파라미터 (ø100 보어용)
-UPAK_W = 8.0;      // U패킹 폭 (단면 폭)
+// U패킹 파라미터 (ø99.5 보어 대응)
+UPAK_W = 6.0;      // U패킹 폭 (단면 폭)
 UPAK_DEPTH = 5.0;   // 홈 깊이 (립이 바깥으로 돌출)
 UPAK_Z = 10.0;      // 홈 중심 위치 (피스톤 상면에서)
 
@@ -40,17 +40,17 @@ difference() {
     translate([0, 0, -PISTON_H - 0.1])
         t8_internal_thread_subtraction(PISTON_H - 5 + 0.1);
         
-    // 배수관 단턱 소켓 (Z=-5 ~ 0 은 ø8.0 관통, Z=-30 ~ -5 은 ø10.2 소켓)
+    // 배수관 단턱 소켓 (Z=-5 ~ 0 은 ø6.0 관통, Z=-30 ~ -5 은 ø8.2 소켓)
     translate([-DRAIN_RADIUS, 0, -5])
-        cylinder(d=8.0, h=6.1);
+        cylinder(d=6.0, h=6.1);
     translate([-DRAIN_RADIUS, 0, -PISTON_H - 10 - 1])
         cylinder(d=DRAIN_D + GLOBAL_TOLERANCE, h=PISTON_H + 10 - 5 + 1.1);
         
     // U패킹 홈 (외주면, 1줄 - 넓은 직사각 단면)
-    // U자 립이 상방(수압 방향)을 향하도록 장착 (홈 바닥 지름은 기성품 규격인 ø90.0)
+    // U자 립이 상방(수압 방향)을 향하도록 장착 (실제 아크릴 내경 99.5mm 반영하여 홈 바닥 지름을 ø89.5로 변경)
     translate([0, 0, -UPAK_Z - UPAK_W/2]) difference() {
         cylinder(d=CUP_ID + 1, h=UPAK_W);
-        translate([0, 0, -0.5]) cylinder(d=90.0, h=UPAK_W + 1);
+        translate([0, 0, -0.5]) cylinder(d=89.5, h=UPAK_W + 1);
     }
     
     // ── 피스톤 상면 배수 유로 홈 (Water Channel) ──
