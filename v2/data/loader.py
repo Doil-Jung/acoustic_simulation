@@ -24,6 +24,11 @@ except ImportError:
     _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))))
     from v2 import config
 
+try:
+    from torch.utils.data import Dataset as _BaseDataset
+except ImportError:
+    _BaseDataset = object
+
 FREQS = np.linspace(config.FREQ_MIN, config.FREQ_MAX, config.N_FREQ)
 
 
@@ -147,10 +152,35 @@ class ChunkStore:
             total += len(d["n_steps"])
             if max_samples and total >= max_samples:
                 break
-        self.spectra = np.concatenate(sp); self.v_cum = np.concatenate(vc)
-        self.n_steps = np.concatenate(ns); self.H = np.concatenate(H)
-        self.labels = np.concatenate(lab); self.label_mask = np.concatenate(msk)
-        self.offsets = np.concatenate([[0], np.cumsum(self.n_steps)])
+
+        spectra_np = np.concatenate(sp)
+        v_cum_np = np.concatenate(vc)
+        n_steps_np = np.concatenate(ns)
+        H_np = np.concatenate(H)
+        labels_np = np.concatenate(lab)
+        label_mask_np = np.concatenate(msk)
+        offsets_np = np.concatenate([[0], np.cumsum(n_steps_np)])
+
+        self.use_shared = False
+        try:
+            import torch
+            self.spectra = torch.from_numpy(spectra_np).share_memory_()
+            self.v_cum = torch.from_numpy(v_cum_np).share_memory_()
+            self.n_steps = torch.from_numpy(n_steps_np).share_memory_()
+            self.H = torch.from_numpy(H_np).share_memory_()
+            self.labels = torch.from_numpy(labels_np).share_memory_()
+            self.label_mask = torch.from_numpy(label_mask_np).share_memory_()
+            self.offsets = torch.from_numpy(offsets_np).share_memory_()
+            self.use_shared = True
+        except Exception:
+            self.spectra = spectra_np
+            self.v_cum = v_cum_np
+            self.n_steps = n_steps_np
+            self.H = H_np
+            self.labels = labels_np
+            self.label_mask = label_mask_np
+            self.offsets = offsets_np
+
         if max_samples:
             self.n = min(max_samples, len(self.n_steps))
         else:
@@ -160,8 +190,18 @@ class ChunkStore:
         return self.n
 
     def get_raw(self, i):
-        a, b = self.offsets[i], self.offsets[i + 1]
-        return self.spectra[a:b], self.v_cum[a:b], self.H[i], self.labels[i], self.label_mask[i]
+        if self.use_shared:
+            a, b = self.offsets[i].item(), self.offsets[i + 1].item()
+            return (
+                self.spectra[a:b].numpy(),
+                self.v_cum[a:b].numpy(),
+                self.H[i].item(),
+                self.labels[i].numpy(),
+                self.label_mask[i].numpy()
+            )
+        else:
+            a, b = self.offsets[i], self.offsets[i + 1]
+            return self.spectra[a:b], self.v_cum[a:b], self.H[i], self.labels[i], self.label_mask[i]
 
 
 def collate_numpy(items, n_bins):
@@ -181,27 +221,33 @@ def collate_numpy(items, n_bins):
     return X, V, step_mask, y_h, y_r, l_mask
 
 
-def make_torch_dataset(store, cfg, seed=0):
-    """PyTorch Dataset 래퍼 (torch는 지연 임포트)."""
-    import torch
-    from torch.utils.data import Dataset
+class TorchChunkDataset(_BaseDataset):
+    def __init__(self, store, cfg, seed=0):
+        self.store = store
+        self.cfg = cfg
+        self.rng = np.random.default_rng(seed)
+        self.signatures = load_or_synth_signatures(cfg, self.rng)
 
-    class _DS(Dataset):
-        def __init__(self):
-            self.rng = np.random.default_rng(seed)
-            self.signatures = load_or_synth_signatures(cfg, self.rng)
+    def __len__(self):
+        return len(self.store)
 
-        def __len__(self):
-            return len(store)
+    def __getitem__(self, i):
+        spec, v, H, lab, lm = self.store.get_raw(i)
+        spec, v = augment_sequence(spec, v, self.cfg, self.rng, self.signatures)
+        h_n, r_n = normalize_labels(H, lab)
+        return spec, v, h_n, r_n, lm
 
-        def __getitem__(self, i):
-            spec, v, H, lab, lm = store.get_raw(i)
-            spec, v = augment_sequence(spec, v, cfg, self.rng, self.signatures)
-            h_n, r_n = normalize_labels(H, lab)
-            return spec, v, h_n, r_n, lm
 
-    def collate(batch):
-        X, V, sm, yh, yr, lm = collate_numpy(batch, cfg.n_bins)
+class TorchChunkCollate:
+    def __init__(self, n_bins):
+        self.n_bins = n_bins
+
+    def __call__(self, batch):
+        import torch
+        X, V, sm, yh, yr, lm = collate_numpy(batch, self.n_bins)
         return tuple(torch.from_numpy(a) for a in (X, V, sm, yh, yr, lm))
 
-    return _DS(), collate
+
+def make_torch_dataset(store, cfg, seed=0):
+    """PyTorch Dataset 래퍼 (torch는 지연 임포트)."""
+    return TorchChunkDataset(store, cfg, seed), TorchChunkCollate(cfg.n_bins)

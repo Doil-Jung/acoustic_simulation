@@ -39,14 +39,14 @@ class StepEncoder(nn.Module):
 
 
 class MaskedSetBaseline(nn.Module):
-    def __init__(self, n_bins, d=256, n_slots=config.N_SLOTS):
+    def __init__(self, n_bins, d=256, n_slots=config.N_SLOTS, dropout=0.2):
         super().__init__()
         self.n_bins = n_bins
         self.step_enc = StepEncoder(d)
         self.v_emb = nn.Sequential(nn.Linear(1, 32), nn.ReLU(), nn.Linear(32, 32))
         self.step_mix = nn.Sequential(nn.Linear(d + 32, d), nn.ReLU())
         self.trunk = nn.Sequential(
-            nn.Linear(2 * d, 256), nn.ReLU(), nn.Dropout(0.2),
+            nn.Linear(2 * d, 256), nn.ReLU(), nn.Dropout(dropout),
             nn.Linear(256, 256), nn.ReLU(),
         )
         self.head_h = nn.Linear(256, 1)

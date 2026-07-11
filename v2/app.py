@@ -13,11 +13,23 @@ import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from v2 import config
 from v2.forward import tmm
+
+# ── matplotlib 한글 폰트 설정 ──
+_korean_font_set = False
+for _fname in ["Malgun Gothic", "NanumGothic", "AppleGothic", "NanumBarunGothic"]:
+    if any(_fname in f.name for f in fm.fontManager.ttflist):
+        plt.rcParams["font.family"] = _fname
+        plt.rcParams["axes.unicode_minus"] = False
+        _korean_font_set = True
+        break
+if not _korean_font_set:
+    plt.rcParams["axes.unicode_minus"] = False
 
 st.set_page_config(page_title="음향 형상 역추적 v2", page_icon="🔊", layout="wide")
 
@@ -230,17 +242,20 @@ def plot_slot_profile(labels_m, mask, H, pred=None, pred_H=None, title=""):
     """25슬롯 라벨(등가반지름) → 계단 프로파일. pred가 있으면 겹쳐 그림."""
     fig, ax = plt.subplots(figsize=(3.4, 4.6))
 
-    def draw(lab, msk, hh, color, label_txt, alpha):
-        n_valid = int(msk.sum())
+    def draw(lab, hh, n_valid, color, label_txt, alpha):
         for i in range(n_valid):
             lo, hi = i * 10, min((i + 1) * 10, hh * 1000)
+            if hi <= lo:
+                break
             r_mm = lab[i] * 1000
             ax.fill_betweenx([lo, hi], -r_mm, r_mm, color=color, alpha=alpha, lw=0)
         ax.plot([], [], color=color, label=label_txt)
 
-    draw(labels_m, mask, H, "#1d4ed8", "True", 0.35)
+    draw(labels_m, H, int(mask.sum()), "#1d4ed8", "True", 0.35)
     if pred is not None:
-        draw(pred, mask, pred_H if pred_H else H, "#dc2626", "Pred", 0.30)
+        # pred_H 기반으로 독자적 유효 슬롯 수 계산 (정답 mask 사용 안 함)
+        pred_n_valid = min(max(int(np.ceil(pred_H * 1000 / 10)), 0), config.N_SLOTS)
+        draw(pred, pred_H, pred_n_valid, "#dc2626", "Pred", 0.30)
         ax.axhline(pred_H * 1000, color="#dc2626", ls="--", lw=1)
     ax.axhline(H * 1000, color="#1d4ed8", ls="--", lw=1)
     ax.set_xlim(-60, 60); ax.set_ylim(-5, 260)
@@ -300,7 +315,7 @@ with tab_data:
 # 탭 3: 학습
 # ─────────────────────────────────────────────────────────────
 with tab_train:
-    st.subheader("베이스라인 CNN 학습 (§8 1칸)")
+    st.subheader("모델 학습 (§8 사다리)")
     try:
         import torch as _torch
         gpus = [f"cuda:{i}" for i in range(_torch.cuda.device_count())]
@@ -310,11 +325,13 @@ with tab_train:
 
     c1, c2 = st.columns(2)
     with c1:
+        tr_model = st.radio("모델 (§8 사다리)", ["set", "rnn"], horizontal=True,
+                            help="set=CNN 셋 풀링(1칸, 순서 무시) / rnn=BiLSTM(2칸, 순서 기억+H헤드 detach)")
         tr_data = st.text_input("데이터 폴더", DATA_DIR_DEFAULT, key="tr_data")
         tr_mode = st.radio("증강 모드", ["ratio", "absolute"], horizontal=True,
                            help="ratio=비율 관측(안전망) / absolute=시그니처 곱(현장 미세조정 계열)")
         tr_crop = st.select_slider("학습 대역 crop (Hz)", [4000, 5000, 7000], 5000)
-        tr_name = st.text_input("모델 이름", f"base_{tr_mode}")
+        tr_name = st.text_input("모델 이름", f"{'rnn' if tr_model == 'rnn' else 'base'}_{tr_mode}")
     with c2:
         tr_epochs = st.number_input("Epochs", 1, 200, 30)
         tr_batch = st.number_input("Batch", 8, 512, 64)
@@ -331,9 +348,13 @@ with tab_train:
         def cb(ep, total, msg, history):
             pbar.progress(ep / total)
             status.text(msg)
-            h = np.array([(e, tr, va) for e, tr, va, _, _ in history])
+            h = np.array([row[:3] for row in history])   # (ep, train, val) — 성분 열 개수와 무관
             fig, ax = plt.subplots(figsize=(8, 3))
             ax.plot(h[:, 0], h[:, 1], label="train"); ax.plot(h[:, 0], h[:, 2], label="val")
+            if len(history[0]) >= 7:                     # 성분 로그 있으면 시소 판정용 표시
+                comp = np.array([(row[0], row[5], row[6]) for row in history])
+                ax.plot(comp[:, 0], comp[:, 1], "--", alpha=0.6, label="val r")
+                ax.plot(comp[:, 0], comp[:, 2], "--", alpha=0.6, label="val h")
             ax.set_yscale("log"); ax.set_xlabel("epoch"); ax.legend(); ax.grid(alpha=0.3)
             fig.tight_layout(); chart_ph.pyplot(fig); plt.close(fig)
 
@@ -341,7 +362,8 @@ with tab_train:
             ckpt, hist = v2train(tr_data, tr_mode, float(tr_crop), int(tr_epochs),
                                  int(tr_batch), float(tr_lr),
                                  None if tr_samples == 0 else int(tr_samples),
-                                 tr_device, tr_name, progress_cb=cb)
+                                 tr_device, tr_name, progress_cb=cb,
+                                 model_type=tr_model)
         st.success(f"학습 완료 — 저장: {ckpt}")
 
 # ─────────────────────────────────────────────────────────────
@@ -356,50 +378,84 @@ with tab_infer:
     else:
         sel = st.selectbox("모델", ckpts)
         n_show = st.slider("표시 샘플 수", 1, 6, 3)
+
+        @st.cache_resource(show_spinner="테스트 데이터 로딩 중...")
+        def _load_test_store(data_dir, max_samples):
+            return v2loader.ChunkStore(data_dir, max_samples=max_samples)
+
         if st.button("🎲 무작위 테스트 추정"):
             import torch
-            from v2.models.baseline import MaskedSetBaseline
             dev = "cuda" if torch.cuda.is_available() else "cpu"
             ck = torch.load(sel, map_location=dev, weights_only=False)
             aug = v2loader.AugmentConfig(mode=ck["aug"]["mode"], crop_hz=ck["aug"]["crop_hz"])
-            model = MaskedSetBaseline(ck["arch"]["n_bins"]).to(dev)
+            # 체크포인트가 자기 모델 종류를 기억 (set=CNN 셋풀링 / rnn=BiLSTM)
+            arch = ck["arch"]
+            if arch.get("model") == "rnn":
+                from v2.models.rnn import MaskedSeqRNN
+                model = MaskedSeqRNN(arch["n_bins"], **(arch.get("model_kw") or {})).to(dev)
+            else:
+                from v2.models.baseline import MaskedSetBaseline
+                model = MaskedSetBaseline(arch["n_bins"]).to(dev)
             model.load_state_dict(ck["model_state"]); model.eval()
 
-            store2 = v2loader.ChunkStore(ck["split"]["data_dir"],
-                                         max_samples=ck["split"]["max_samples"])
+            store2 = _load_test_store(ck["split"]["data_dir"],
+                                      ck["split"]["max_samples"])
             test_idx = [i for i in ck["split"]["test_idx"] if i < len(store2)]
             rng = np.random.default_rng()
             sigs = v2loader.load_or_synth_signatures(aug, rng)
             picks = rng.choice(test_idx, min(n_show, len(test_idx)), replace=False)
 
-            cols = st.columns(len(picks))
-            for col, i in zip(cols, picks):
-                spec, v, H_s, lab, lm = store2.get_raw(int(i))
-                x, vn = v2loader.augment_sequence(spec, v, aug, rng, sigs)
+            for i in picks:
+                spec_raw, v_raw, H_s, lab, lm = store2.get_raw(int(i))
+                x, vn = v2loader.augment_sequence(spec_raw, v_raw, aug, rng, sigs)
                 items = [(x, vn, *v2loader.normalize_labels(H_s, lab), lm)]
                 X, V, sm, yh, yr, lmk = v2loader.collate_numpy(items, aug.n_bins)
                 with torch.no_grad():
                     ph, pr = model(torch.from_numpy(X).to(dev),
                                    torch.from_numpy(V).to(dev),
                                    torch.from_numpy(sm).to(dev))
-                pred_h = float(ph.cpu()) * (config.H_MAX - config.H_MIN) + config.H_MIN
+                cal = ck.get("calib_h")
+                ph_n = float(ph.cpu())
+                if cal:
+                    ph_n = cal["a"] * ph_n + cal["b"]
+                pred_h = ph_n * (config.H_MAX - config.H_MIN) + config.H_MIN
                 pred_r = pr.cpu().numpy()[0] * (config.R_MAX - config.R_MIN) + config.R_MIN
                 err_h = abs(pred_h - H_s) * 1000
                 err_r = float(np.abs((pred_r - lab) * lm).sum() / lm.sum()) * 1000
-                with col:
+
+                col_shape, col_spec = st.columns([1.2, 2.2])
+                with col_shape:
                     st.pyplot(plot_slot_profile(lab, lm, H_s, pred_r, pred_h,
                               title=f"#{i}  H err {err_h:.1f}mm / r err {err_r:.1f}mm"))
+                with col_spec:
+                    fig, ax = plt.subplots(figsize=(6, 4.4))
+                    mm = config.FREQS_FULL <= aug.crop_hz if hasattr(config, 'FREQS_FULL') else np.ones(spec_raw.shape[1], bool)
+                    im = ax.imshow(spec_raw * 20, aspect="auto", origin="lower",
+                                   cmap="viridis",
+                                   extent=[config.FREQ_MIN, config.FREQ_MAX, 0, len(v_raw)])
+                    ax.set_xlabel("Frequency (Hz)"); ax.set_ylabel("step")
+                    ax.set_title(f"#{i}: H={H_s*1000:.0f}mm, {len(v_raw)} steps")
+                    plt.colorbar(im, ax=ax, pad=0.01, label="|H| dB")
+                    fig.tight_layout()
+                    st.pyplot(fig)
+                    plt.close(fig)
+                st.divider()
 
         st.divider()
         st.subheader("현재 사이드바에 정의된 형상 실시간 추정")
         st.caption("사이드바에서 설정한 컵 형상(예: 리그 계단, 소주병, 커스텀 등)에 대해 물채움 시퀀스를 생성한 후, 학습된 모델로 실시간 추정 및 시각화를 진행합니다.")
         if st.button("🔮 현재 사이드바 형상 추정"):
             import torch
-            from v2.models.baseline import MaskedSetBaseline
             dev = "cuda" if torch.cuda.is_available() else "cpu"
             ck = torch.load(sel, map_location=dev, weights_only=False)
             aug = v2loader.AugmentConfig(mode=ck["aug"]["mode"], crop_hz=ck["aug"]["crop_hz"], enabled=False)
-            model = MaskedSetBaseline(ck["arch"]["n_bins"]).to(dev)
+            arch = ck["arch"]
+            if arch.get("model") == "rnn":
+                from v2.models.rnn import MaskedSeqRNN
+                model = MaskedSeqRNN(arch["n_bins"], **(arch.get("model_kw") or {})).to(dev)
+            else:
+                from v2.models.baseline import MaskedSetBaseline
+                model = MaskedSetBaseline(arch["n_bins"]).to(dev)
             model.load_state_dict(ck["model_state"])
             model.eval()
 
@@ -441,7 +497,11 @@ with tab_infer:
                                    torch.from_numpy(V).to(dev),
                                    torch.from_numpy(sm).to(dev))
 
-                pred_h = float(ph.cpu()) * (config.H_MAX - config.H_MIN) + config.H_MIN
+                cal = ck.get("calib_h")
+                ph_n = float(ph.cpu())
+                if cal:
+                    ph_n = cal["a"] * ph_n + cal["b"]
+                pred_h = ph_n * (config.H_MAX - config.H_MIN) + config.H_MIN
                 pred_r = pr.cpu().numpy()[0] * (config.R_MAX - config.R_MIN) + config.R_MIN
                 err_h = abs(pred_h - H_sb) * 1000
                 err_r = float(np.abs((pred_r - labels_sb) * mask_sb).sum() / mask_sb.sum()) * 1000
